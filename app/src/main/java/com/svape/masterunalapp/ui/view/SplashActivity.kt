@@ -1,4 +1,4 @@
-package com.svape.masterunalapp
+package com.svape.masterunalapp.ui.view
 
 import android.content.Intent
 import android.os.Bundle
@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -26,6 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.svape.masterunalapp.R
 import com.svape.masterunalapp.ui.theme.MasterUnalAppTheme
 import kotlinx.coroutines.delay
 
@@ -40,7 +40,7 @@ class SplashActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     SplashScreen {
-                        startActivity(Intent(this@SplashActivity, com.svape.masterunalapp.ui.view.MainActivity::class.java))
+                        startActivity(Intent(this@SplashActivity, MainActivity::class.java))
                         finish()
                     }
                 }
