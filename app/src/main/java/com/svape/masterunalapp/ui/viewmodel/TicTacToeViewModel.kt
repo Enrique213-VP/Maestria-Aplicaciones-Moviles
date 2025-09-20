@@ -10,13 +10,23 @@ data class TicTacToeUiState(
     val board: List<Char> = List(9) { ' ' },
     val gameMessage: String = "¡Tu turno! Toca un cuadro para jugar",
     val isGameOver: Boolean = false,
-    val isComputerTurn: Boolean = false
+    val isComputerTurn: Boolean = false,
+    val currentDifficulty: TicTacToeGame.DifficultyLevel = TicTacToeGame.DifficultyLevel.Expert,
+    val showDifficultyDialog: Boolean = false,
+    val showQuitDialog: Boolean = false,
+    val showAboutDialog: Boolean = false
 )
 
 sealed class TicTacToeEvent {
     data class CellClicked(val position: Int) : TicTacToeEvent()
     object NewGameRequested : TicTacToeEvent()
     object ComputerMoveCompleted : TicTacToeEvent()
+    object ShowDifficultyDialog : TicTacToeEvent()
+    object ShowQuitDialog : TicTacToeEvent()
+    object ShowAboutDialog : TicTacToeEvent()
+    object DismissDialogs : TicTacToeEvent()
+    data class SetDifficulty(val difficulty: TicTacToeGame.DifficultyLevel) : TicTacToeEvent()
+    object QuitGame : TicTacToeEvent()
 }
 
 class TicTacToeViewModel : ViewModel() {
@@ -35,6 +45,32 @@ class TicTacToeViewModel : ViewModel() {
             is TicTacToeEvent.CellClicked -> handleCellClick(event.position)
             is TicTacToeEvent.NewGameRequested -> startNewGame()
             is TicTacToeEvent.ComputerMoveCompleted -> handleComputerMove()
+            is TicTacToeEvent.ShowDifficultyDialog -> {
+                _uiState.value = _uiState.value.copy(showDifficultyDialog = true)
+            }
+            is TicTacToeEvent.ShowQuitDialog -> {
+                _uiState.value = _uiState.value.copy(showQuitDialog = true)
+            }
+            is TicTacToeEvent.ShowAboutDialog -> {
+                _uiState.value = _uiState.value.copy(showAboutDialog = true)
+            }
+            is TicTacToeEvent.DismissDialogs -> {
+                _uiState.value = _uiState.value.copy(
+                    showDifficultyDialog = false,
+                    showQuitDialog = false,
+                    showAboutDialog = false
+                )
+            }
+            is TicTacToeEvent.SetDifficulty -> {
+                game.setDifficultyLevel(event.difficulty)
+                _uiState.value = _uiState.value.copy(
+                    currentDifficulty = event.difficulty,
+                    showDifficultyDialog = false
+                )
+            }
+            is TicTacToeEvent.QuitGame -> {
+                // Este evento será manejado en la Activity
+            }
         }
     }
 
@@ -86,6 +122,15 @@ class TicTacToeViewModel : ViewModel() {
 
     private fun startNewGame() {
         game.clearBoard()
-        _uiState.value = TicTacToeUiState()
+        val currentDifficulty = game.getDifficultyLevel()
+        _uiState.value = TicTacToeUiState(currentDifficulty = currentDifficulty)
+    }
+
+    fun getDifficultyDisplayName(difficulty: TicTacToeGame.DifficultyLevel): String {
+        return when (difficulty) {
+            TicTacToeGame.DifficultyLevel.Easy -> "Fácil"
+            TicTacToeGame.DifficultyLevel.Harder -> "Difícil"
+            TicTacToeGame.DifficultyLevel.Expert -> "Experto"
+        }
     }
 }

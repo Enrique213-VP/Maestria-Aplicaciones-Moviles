@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">DADM</string>
+    <string name="difficulty_choose">Elegir nivel de dificultad</string>
+    <string name="difficulty_easy">Fácil</string>
+    <string name="difficulty_harder">Difícil</string>
+    <string name="difficulty_expert">Experto</string>
+    <string name="quit_question">¿Estás seguro que quieres salir?</string>
+    <string name="yes">Sí</string>
+    <string name="no">No</string>
 </resources>

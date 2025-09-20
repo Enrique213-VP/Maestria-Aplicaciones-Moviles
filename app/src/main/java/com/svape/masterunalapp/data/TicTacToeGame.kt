@@ -11,6 +11,12 @@ class TicTacToeGame {
         const val BOARD_SIZE = 9
     }
 
+    // Niveles de dificultad de la computadora
+    enum class DifficultyLevel { Easy, Harder, Expert }
+
+    // Nivel de dificultad actual
+    private var mDifficultyLevel = DifficultyLevel.Expert
+
     private val mBoard = CharArray(BOARD_SIZE) { OPEN_SPOT }
     private val mRand = Random
 
@@ -29,8 +35,42 @@ class TicTacToeGame {
         }
     }
 
+    // Getters y setters para el nivel de dificultad
+    fun getDifficultyLevel(): DifficultyLevel {
+        return mDifficultyLevel
+    }
+
+    fun setDifficultyLevel(difficultyLevel: DifficultyLevel) {
+        mDifficultyLevel = difficultyLevel
+    }
+
     fun getComputerMove(): Int {
-        // Intentar ganar
+        return when (mDifficultyLevel) {
+            DifficultyLevel.Easy -> getRandomMove()
+            DifficultyLevel.Harder -> {
+                val move = getWinningMove()
+                if (move == -1) getRandomMove() else move
+            }
+            DifficultyLevel.Expert -> {
+                // Intentar ganar, pero si no es posible, bloquear
+                // Si eso no es posible, moverse a cualquier lugar
+                var move = getWinningMove()
+                if (move == -1) move = getBlockingMove()
+                if (move == -1) move = getRandomMove()
+                move
+            }
+        }
+    }
+
+    private fun getRandomMove(): Int {
+        var move: Int
+        do {
+            move = mRand.nextInt(BOARD_SIZE)
+        } while (mBoard[move] != OPEN_SPOT)
+        return move
+    }
+
+    private fun getWinningMove(): Int {
         for (i in 0 until BOARD_SIZE) {
             if (mBoard[i] == OPEN_SPOT) {
                 mBoard[i] = COMPUTER_PLAYER
@@ -41,8 +81,10 @@ class TicTacToeGame {
                 mBoard[i] = OPEN_SPOT
             }
         }
+        return -1
+    }
 
-        // Bloquear al usuario
+    private fun getBlockingMove(): Int {
         for (i in 0 until BOARD_SIZE) {
             if (mBoard[i] == OPEN_SPOT) {
                 mBoard[i] = HUMAN_PLAYER
@@ -53,14 +95,7 @@ class TicTacToeGame {
                 mBoard[i] = OPEN_SPOT
             }
         }
-
-        // Movimiento aleatorio
-        var move: Int
-        do {
-            move = mRand.nextInt(BOARD_SIZE)
-        } while (mBoard[move] != OPEN_SPOT)
-
-        return move
+        return -1
     }
 
     fun checkForWinner(): Int {
