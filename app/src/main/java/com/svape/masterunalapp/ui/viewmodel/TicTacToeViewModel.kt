@@ -1,10 +1,14 @@
 package com.svape.masterunalapp.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import com.svape.masterunalapp.data.TicTacToeGame
+import com.svape.masterunalapp.ui.utils.SoundManager
 
 data class TicTacToeUiState(
     val board: List<Char> = List(9) { ' ' },
@@ -14,7 +18,8 @@ data class TicTacToeUiState(
     val currentDifficulty: TicTacToeGame.DifficultyLevel = TicTacToeGame.DifficultyLevel.Expert,
     val showDifficultyDialog: Boolean = false,
     val showQuitDialog: Boolean = false,
-    val showAboutDialog: Boolean = false
+    val showAboutDialog: Boolean = false,
+    val soundEnabled: Boolean = true
 )
 
 sealed class TicTacToeEvent {
@@ -27,17 +32,23 @@ sealed class TicTacToeEvent {
     object DismissDialogs : TicTacToeEvent()
     data class SetDifficulty(val difficulty: TicTacToeGame.DifficultyLevel) : TicTacToeEvent()
     object QuitGame : TicTacToeEvent()
+    data class SetSoundEnabled(val enabled: Boolean) : TicTacToeEvent()
 }
 
 class TicTacToeViewModel : ViewModel() {
 
     private val game = TicTacToeGame()
+    private var soundManager: SoundManager? = null
 
     private val _uiState = MutableStateFlow(TicTacToeUiState())
     val uiState: StateFlow<TicTacToeUiState> = _uiState.asStateFlow()
 
     init {
         startNewGame()
+    }
+
+    fun setSoundManager(manager: SoundManager) {
+        soundManager = manager
     }
 
     fun onEvent(event: TicTacToeEvent) {
@@ -71,6 +82,10 @@ class TicTacToeViewModel : ViewModel() {
             is TicTacToeEvent.QuitGame -> {
                 // Este evento será manejado en la Activity
             }
+            is TicTacToeEvent.SetSoundEnabled -> {
+                soundManager?.setSoundEnabled(event.enabled)
+                _uiState.value = _uiState.value.copy(soundEnabled = event.enabled)
+            }
         }
     }
 
@@ -82,15 +97,39 @@ class TicTacToeViewModel : ViewModel() {
 
         // Movimiento del usuario
         if (game.setMove(TicTacToeGame.HUMAN_PLAYER, position)) {
+            // Reproducir sonido del jugador humano
+            soundManager?.playHumanMoveSound()
+
             updateUIAfterMove()
+
+            // Si el juego no ha terminado, programar el movimiento de la computadora
+            if (!_uiState.value.isGameOver) {
+                scheduleComputerMove()
+            }
+        }
+    }
+
+    private fun scheduleComputerMove() {
+        _uiState.value = _uiState.value.copy(
+            isComputerTurn = true,
+            gameMessage = "Turno de Android..."
+        )
+
+        // Programar el movimiento de la computadora con delay
+        viewModelScope.launch {
+            delay(1000) // Esperar 1 segundo
+            handleComputerMove()
         }
     }
 
     private fun handleComputerMove() {
         val computerMove = game.getComputerMove()
         game.setMove(TicTacToeGame.COMPUTER_PLAYER, computerMove)
-        updateUIAfterMove()
 
+        // Reproducir sonido del movimiento de la computadora
+        soundManager?.playComputerMoveSound()
+
+        updateUIAfterMove()
         _uiState.value = _uiState.value.copy(isComputerTurn = false)
     }
 
@@ -100,8 +139,7 @@ class TicTacToeViewModel : ViewModel() {
 
         val newMessage = when (winner) {
             0 -> {
-                if (!_uiState.value.isComputerTurn) {
-                    _uiState.value = _uiState.value.copy(isComputerTurn = true)
+                if (_uiState.value.isComputerTurn) {
                     "Turno de Android..."
                 } else {
                     "¡Tu turno!"
@@ -123,7 +161,10 @@ class TicTacToeViewModel : ViewModel() {
     private fun startNewGame() {
         game.clearBoard()
         val currentDifficulty = game.getDifficultyLevel()
-        _uiState.value = TicTacToeUiState(currentDifficulty = currentDifficulty)
+        _uiState.value = TicTacToeUiState(
+            currentDifficulty = currentDifficulty,
+            soundEnabled = _uiState.value.soundEnabled
+        )
     }
 
     fun getDifficultyDisplayName(difficulty: TicTacToeGame.DifficultyLevel): String {

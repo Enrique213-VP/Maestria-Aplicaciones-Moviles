@@ -16,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -28,15 +27,21 @@ import com.svape.masterunalapp.data.TicTacToeGame
 import com.svape.masterunalapp.ui.theme.MasterUnalAppTheme
 import com.svape.masterunalapp.ui.viewmodel.TicTacToeViewModel
 import com.svape.masterunalapp.ui.viewmodel.TicTacToeEvent
-import kotlinx.coroutines.delay
+import com.svape.masterunalapp.ui.utils.SoundManager
 
 class TicTacToeActivity : ComponentActivity() {
 
     private val viewModel: TicTacToeViewModel by viewModels()
+    private lateinit var soundManager: SoundManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Inicializar el gestor de sonido
+        soundManager = SoundManager(this, this)
+        viewModel.setSoundManager(soundManager)
+
         setContent {
             MasterUnalAppTheme {
                 Surface(
@@ -62,19 +67,6 @@ fun TicTacToeScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showMenu by remember { mutableStateOf(false) }
 
-    // Efecto para el movimiento de la computadora
-    LaunchedEffect(uiState.isComputerTurn) {
-        if (uiState.isComputerTurn && !uiState.isGameOver) {
-            delay(1000)
-            viewModel.onEvent(TicTacToeEvent.ComputerMoveCompleted)
-        }
-    }
-
-    // Efecto para manejar el quit
-    LaunchedEffect(uiState) {
-        // Este LaunchedEffect se puede usar para otras acciones si es necesario
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -94,6 +86,19 @@ fun TicTacToeScreen(
                 )
             },
             actions = {
+                // Botón de sonido
+                IconButton(
+                    onClick = {
+                        viewModel.onEvent(TicTacToeEvent.SetSoundEnabled(!uiState.soundEnabled))
+                    }
+                ) {
+                    Text(
+                        text = if (uiState.soundEnabled) "♪" else "♪̸",
+                        fontSize = 20.sp,
+                        color = Color(0xFF003366)
+                    )
+                }
+
                 Box {
                     IconButton(onClick = { showMenu = true }) {
                         Icon(
@@ -152,55 +157,49 @@ fun TicTacToeScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
         ) {
-            Text(
-                text = "Dificultad: ${viewModel.getDifficultyDisplayName(uiState.currentDifficulty)}",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF1976D2),
-                textAlign = TextAlign.Center,
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp)
-            )
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Dificultad: ${viewModel.getDifficultyDisplayName(uiState.currentDifficulty)}",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF1976D2)
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (uiState.soundEnabled) "♪" else "♪̸",
+                        fontSize = 16.sp,
+                        color = Color(0xFF1976D2)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (uiState.soundEnabled) "ON" else "OFF",
+                        fontSize = 12.sp,
+                        color = Color(0xFF1976D2)
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Tablero de juego
-        Card(
-            modifier = Modifier
-                .padding(16.dp)
-                .size(320.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.SpaceEvenly
-            ) {
-                for (row in 0..2) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        for (col in 0..2) {
-                            val position = row * 3 + col
-                            val cellValue = uiState.board[position]
-
-                            GameCell(
-                                value = cellValue,
-                                onClick = {
-                                    viewModel.onEvent(TicTacToeEvent.CellClicked(position))
-                                },
-                                enabled = !uiState.isGameOver && !uiState.isComputerTurn && cellValue == ' '
-                            )
-                        }
-                    }
-                }
-            }
-        }
+        // Tablero de juego personalizado
+        CustomTicTacToeBoard(
+            board = uiState.board,
+            onCellClick = { position ->
+                viewModel.onEvent(TicTacToeEvent.CellClicked(position))
+            },
+            enabled = !uiState.isGameOver && !uiState.isComputerTurn,
+            modifier = Modifier.padding(16.dp)
+        )
 
         // Mensaje del juego
         Card(
@@ -301,46 +300,6 @@ fun TicTacToeScreen(
 }
 
 @Composable
-fun GameCell(
-    value: Char,
-    onClick: () -> Unit,
-    enabled: Boolean
-) {
-    val backgroundColor = when (value) {
-        'X' -> Color(0xFFC8E6C9)
-        'O' -> Color(0xFFFFCDD2)
-        else -> Color(0xFFE3F2FD)
-    }
-
-    val textColor = when (value) {
-        'X' -> Color(0xFF2E7D32)
-        'O' -> Color(0xFFD32F2F)
-        else -> Color.Transparent
-    }
-
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = backgroundColor,
-            contentColor = textColor,
-            disabledContainerColor = backgroundColor,
-            disabledContentColor = textColor
-        ),
-        shape = RoundedCornerShape(8.dp),
-        modifier = Modifier.size(80.dp),
-        contentPadding = PaddingValues(0.dp)
-    ) {
-        Text(
-            text = if (value != ' ') value.toString() else "",
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-@Composable
 fun DifficultyDialog(
     currentDifficulty: TicTacToeGame.DifficultyLevel,
     onDifficultySelected: (TicTacToeGame.DifficultyLevel) -> Unit,
@@ -435,18 +394,6 @@ fun AboutDialog(
         },
         text = {
             Column {
-                // Imagen del ícono (opcional)
-                /*
-                Image(
-                    painter = painterResource(id = R.drawable.icon),
-                    contentDescription = "Ícono de la app",
-                    modifier = Modifier
-                        .size(64.dp)
-                        .align(Alignment.CenterHorizontally)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                */
-
                 Text(
                     text = "Triqui (Tic-Tac-Toe)",
                     fontWeight = FontWeight.Bold,
@@ -469,7 +416,7 @@ fun AboutDialog(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Elige uno de tres niveles de dificultad.\n¡No dejes que Android gane!",
+                    text = "Elige uno de tres niveles de dificultad.\n¡No dejes que Android gane!\n\nAhora con gráficos personalizados y efectos de sonido.",
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
