@@ -1,33 +1,26 @@
 package com.svape.masterunalapp.ui.view
 
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.svape.masterunalapp.R
-import com.svape.masterunalapp.data.TicTacToeGame
 import com.svape.masterunalapp.ui.theme.MasterUnalAppTheme
-import com.svape.masterunalapp.ui.viewmodel.TicTacToeViewModel
-import com.svape.masterunalapp.ui.viewmodel.TicTacToeEvent
 import com.svape.masterunalapp.ui.utils.SoundManager
+import com.svape.masterunalapp.ui.viewmodel.TicTacToeEvent
+import com.svape.masterunalapp.ui.viewmodel.TicTacToeViewModel
+import com.svape.masterunalapp.data.TicTacToeGame
 
 class TicTacToeActivity : ComponentActivity() {
 
@@ -38,263 +31,306 @@ class TicTacToeActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Inicializar el gestor de sonido
         soundManager = SoundManager(this, this)
         viewModel.setSoundManager(soundManager)
+        viewModel.initializeWithContext(this)
 
         setContent {
             MasterUnalAppTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    TicTacToeScreen(
-                        viewModel = viewModel,
-                        onQuitRequested = { finish() }
-                    )
-                }
+                AdaptiveTicTacToeScreen(
+                    viewModel = viewModel,
+                    onQuit = { finish() }
+                )
             }
         }
     }
+
+    override fun onStop() {
+        super.onStop()
+        viewModel.savePreferences()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        viewModel.saveInstanceState()
+    }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TicTacToeScreen(
+fun AdaptiveTicTacToeScreen(
     viewModel: TicTacToeViewModel,
-    onQuitRequested: () -> Unit = {}
+    onQuit: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var showMenu by remember { mutableStateOf(false) }
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // Barra superior con menú
-        TopAppBar(
-            title = {
+    if (isLandscape) {
+        TicTacToeScreenLandscape(viewModel, onQuit)
+    } else {
+        TicTacToeScreenPortrait(viewModel, onQuit)
+    }
+}
+
+@Composable
+fun TicTacToeScreenPortrait(
+    viewModel: TicTacToeViewModel,
+    onQuit: () -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            TicTacToeTopBar(
+                onNewGame = { viewModel.onEvent(TicTacToeEvent.NewGameRequested) },
+                onDifficultyClick = { viewModel.onEvent(TicTacToeEvent.ShowDifficultyDialog) },
+                onResetScores = { viewModel.onEvent(TicTacToeEvent.ResetScores) },
+                onAbout = { viewModel.onEvent(TicTacToeEvent.ShowAboutDialog) },
+                soundEnabled = uiState.soundEnabled,
+                onSoundToggle = {
+                    viewModel.onEvent(TicTacToeEvent.SetSoundEnabled(!uiState.soundEnabled))
+                }
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Triqui",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF003366)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = uiState.gameMessage,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (uiState.isGameOver) Color(0xFFD32F2F) else Color(0xFF2E7D32)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            CustomTicTacToeBoard(
+                board = uiState.board,
+                onCellClick = { position ->
+                    viewModel.onEvent(TicTacToeEvent.CellClicked(position))
+                },
+                enabled = !uiState.isGameOver && !uiState.isComputerTurn,
+                modifier = Modifier.size(320.dp)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            ScoreBoard(
+                humanWins = uiState.humanWins,
+                computerWins = uiState.computerWins,
+                ties = uiState.ties
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Dificultad: ${viewModel.getDifficultyDisplayName(uiState.currentDifficulty)}",
+                fontSize = 14.sp,
+                color = Color.Gray
+            )
+        }
+    }
+
+    ShowDialogs(viewModel, uiState)
+}
+
+@Composable
+fun TicTacToeScreenLandscape(
+    viewModel: TicTacToeViewModel,
+    onQuit: () -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            TicTacToeTopBar(
+                onNewGame = { viewModel.onEvent(TicTacToeEvent.NewGameRequested) },
+                onDifficultyClick = { viewModel.onEvent(TicTacToeEvent.ShowDifficultyDialog) },
+                onResetScores = { viewModel.onEvent(TicTacToeEvent.ResetScores) },
+                onAbout = { viewModel.onEvent(TicTacToeEvent.ShowAboutDialog) },
+                soundEnabled = uiState.soundEnabled,
+                onSoundToggle = {
+                    viewModel.onEvent(TicTacToeEvent.SetSoundEnabled(!uiState.soundEnabled))
+                }
+            )
+        }
+    ) { paddingValues ->
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CustomTicTacToeBoard(
+                board = uiState.board,
+                onCellClick = { position ->
+                    viewModel.onEvent(TicTacToeEvent.CellClicked(position))
+                },
+                enabled = !uiState.isGameOver && !uiState.isComputerTurn,
+                modifier = Modifier.size(270.dp)
+            )
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
                 Text(
                     text = "Triqui",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF003366)
                 )
-            },
-            actions = {
-                // Botón de sonido
-                IconButton(
-                    onClick = {
-                        viewModel.onEvent(TicTacToeEvent.SetSoundEnabled(!uiState.soundEnabled))
-                    }
-                ) {
-                    Text(
-                        text = if (uiState.soundEnabled) "♪" else "♪̸",
-                        fontSize = 20.sp,
-                        color = Color(0xFF003366)
-                    )
-                }
 
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = "Menú",
-                            tint = Color(0xFF003366)
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Nuevo Juego") },
-                            onClick = {
-                                showMenu = false
-                                viewModel.onEvent(TicTacToeEvent.NewGameRequested)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Dificultad") },
-                            onClick = {
-                                showMenu = false
-                                viewModel.onEvent(TicTacToeEvent.ShowDifficultyDialog)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Acerca de") },
-                            onClick = {
-                                showMenu = false
-                                viewModel.onEvent(TicTacToeEvent.ShowAboutDialog)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Salir") },
-                            onClick = {
-                                showMenu = false
-                                viewModel.onEvent(TicTacToeEvent.ShowQuitDialog)
-                            }
-                        )
-                    }
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.Transparent
-            )
-        )
+                Spacer(modifier = Modifier.height(16.dp))
 
-        Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = uiState.gameMessage,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (uiState.isGameOver) Color(0xFFD32F2F) else Color(0xFF2E7D32)
+                )
 
-        // Indicador de dificultad actual
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+                Spacer(modifier = Modifier.height(24.dp))
+
+                ScoreBoard(
+                    humanWins = uiState.humanWins,
+                    computerWins = uiState.computerWins,
+                    ties = uiState.ties
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Text(
                     text = "Dificultad: ${viewModel.getDifficultyDisplayName(uiState.currentDifficulty)}",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF1976D2)
-                )
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (uiState.soundEnabled) "♪" else "♪̸",
-                        fontSize = 16.sp,
-                        color = Color(0xFF1976D2)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (uiState.soundEnabled) "ON" else "OFF",
-                        fontSize = 12.sp,
-                        color = Color(0xFF1976D2)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Tablero de juego personalizado
-        CustomTicTacToeBoard(
-            board = uiState.board,
-            onCellClick = { position ->
-                viewModel.onEvent(TicTacToeEvent.CellClicked(position))
-            },
-            enabled = !uiState.isGameOver && !uiState.isComputerTurn,
-            modifier = Modifier.padding(16.dp)
-        )
-
-        // Mensaje del juego
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 20.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            Text(
-                text = uiState.gameMessage,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF003366),
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            )
-        }
-
-        // Botones
-        Row(
-            modifier = Modifier.padding(top = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Button(
-                onClick = {
-                    viewModel.onEvent(TicTacToeEvent.NewGameRequested)
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF003366),
-                    contentColor = Color.White
-                ),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.height(48.dp)
-            ) {
-                Text(
-                    text = "Nuevo Juego",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            val context = LocalContext.current
-            OutlinedButton(
-                onClick = {
-                    (context as? ComponentActivity)?.finish()
-                },
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF4A90E2)
-                ),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.height(48.dp)
-            ) {
-                Text(
-                    text = "Volver",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
+                    fontSize = 12.sp,
+                    color = Color.Gray
                 )
             }
         }
     }
 
-    // Diálogos
+    ShowDialogs(viewModel, uiState)
+}
+
+@Composable
+private fun ShowDialogs(
+    viewModel: TicTacToeViewModel,
+    uiState: com.svape.masterunalapp.ui.viewmodel.TicTacToeUiState
+) {
     if (uiState.showDifficultyDialog) {
         DifficultyDialog(
             currentDifficulty = uiState.currentDifficulty,
             onDifficultySelected = { difficulty ->
                 viewModel.onEvent(TicTacToeEvent.SetDifficulty(difficulty))
             },
-            onDismiss = {
-                viewModel.onEvent(TicTacToeEvent.DismissDialogs)
-            },
-            viewModel = viewModel
-        )
-    }
-
-    if (uiState.showQuitDialog) {
-        QuitDialog(
-            onConfirm = {
-                viewModel.onEvent(TicTacToeEvent.DismissDialogs)
-                onQuitRequested()
-            },
-            onDismiss = {
-                viewModel.onEvent(TicTacToeEvent.DismissDialogs)
-            }
+            onDismiss = { viewModel.onEvent(TicTacToeEvent.DismissDialogs) },
+            getDifficultyName = { viewModel.getDifficultyDisplayName(it) }
         )
     }
 
     if (uiState.showAboutDialog) {
         AboutDialog(
-            onDismiss = {
-                viewModel.onEvent(TicTacToeEvent.DismissDialogs)
+            onDismiss = { viewModel.onEvent(TicTacToeEvent.DismissDialogs) }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TicTacToeTopBar(
+    onNewGame: () -> Unit,
+    onDifficultyClick: () -> Unit,
+    onResetScores: () -> Unit,
+    onAbout: () -> Unit,
+    soundEnabled: Boolean,
+    onSoundToggle: () -> Unit
+) {
+    TopAppBar(
+        title = { Text("Triqui") },
+        actions = {
+            IconButton(onClick = onNewGame) {
+                Text("🔄", fontSize = 20.sp)
             }
+            IconButton(onClick = onDifficultyClick) {
+                Text("⚙️", fontSize = 20.sp)
+            }
+            IconButton(onClick = onResetScores) {
+                Text("🔃", fontSize = 20.sp)
+            }
+            IconButton(onClick = onSoundToggle) {
+                Text(if (soundEnabled) "🔊" else "🔇", fontSize = 20.sp)
+            }
+            IconButton(onClick = onAbout) {
+                Text("ℹ️", fontSize = 20.sp)
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Color(0xFF003366),
+            titleContentColor = Color.White,
+            actionIconContentColor = Color.White
+        )
+    )
+}
+
+@Composable
+fun ScoreBoard(
+    humanWins: Int,
+    computerWins: Int,
+    ties: Int
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            ScoreItem("Humano", humanWins, Color(0xFF2E7D32))
+            ScoreItem("Empates", ties, Color(0xFFFF9800))
+            ScoreItem("Android", computerWins, Color(0xFFD32F2F))
+        }
+    }
+}
+
+@Composable
+fun ScoreItem(label: String, score: Int, color: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            color = Color.Gray
+        )
+        Text(
+            text = score.toString(),
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = color
         )
     }
 }
@@ -304,137 +340,58 @@ fun DifficultyDialog(
     currentDifficulty: TicTacToeGame.DifficultyLevel,
     onDifficultySelected: (TicTacToeGame.DifficultyLevel) -> Unit,
     onDismiss: () -> Unit,
-    viewModel: TicTacToeViewModel
+    getDifficultyName: (TicTacToeGame.DifficultyLevel) -> String
 ) {
-    val difficulties = listOf(
-        TicTacToeGame.DifficultyLevel.Easy,
-        TicTacToeGame.DifficultyLevel.Harder,
-        TicTacToeGame.DifficultyLevel.Expert
-    )
-
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "Elegir nivel de dificultad",
-                fontWeight = FontWeight.Bold
-            )
-        },
+        title = { Text("Seleccionar Dificultad") },
         text = {
             Column {
-                difficulties.forEach { difficulty ->
+                TicTacToeGame.DifficultyLevel.values().forEach { difficulty ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(
-                            selected = difficulty == currentDifficulty,
+                            selected = currentDifficulty == difficulty,
                             onClick = { onDifficultySelected(difficulty) }
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = viewModel.getDifficultyDisplayName(difficulty),
-                            modifier = Modifier.weight(1f)
-                        )
+                        Text(getDifficultyName(difficulty))
                     }
                 }
             }
         },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar")
-            }
-        }
-    )
-}
-
-@Composable
-fun QuitDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "¿Estás seguro?",
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Text("¿Quieres salir del juego?")
-        },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("Sí")
-            }
-        },
-        dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("No")
+                Text("Cerrar")
             }
         }
     )
 }
 
 @Composable
-fun AboutDialog(
-    onDismiss: () -> Unit
-) {
+fun AboutDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "Acerca de Triqui",
-                fontWeight = FontWeight.Bold
-            )
-        },
+        title = { Text("Acerca de") },
         text = {
             Column {
-                Text(
-                    text = "Triqui (Tic-Tac-Toe)",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Text("Juego de Triqui")
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Desarrollado por:\nSergio Vargas Pedraza",
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Text("Desarrollado con Jetpack Compose")
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Desarrollo de Aplicaciones\npara Dispositivos Móviles",
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Text("Sergio Vargas Pedraza")
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Elige uno de tres niveles de dificultad.\n¡No dejes que Android gane!\n\nAhora con gráficos personalizados y efectos de sonido.",
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Text("Universidad Nacional de Colombia")
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("OK")
+                Text("Cerrar")
             }
         }
     )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun TicTacToeScreenPreview() {
-    MasterUnalAppTheme {
-        TicTacToeScreen(viewModel = TicTacToeViewModel())
-    }
 }

@@ -11,10 +11,8 @@ class TicTacToeGame {
         const val BOARD_SIZE = 9
     }
 
-    // Niveles de dificultad de la computadora
     enum class DifficultyLevel { Easy, Harder, Expert }
 
-    // Nivel de dificultad actual
     private var mDifficultyLevel = DifficultyLevel.Expert
 
     private val mBoard = CharArray(BOARD_SIZE) { OPEN_SPOT }
@@ -35,7 +33,6 @@ class TicTacToeGame {
         }
     }
 
-    // Getters y setters para el nivel de dificultad
     fun getDifficultyLevel(): DifficultyLevel {
         return mDifficultyLevel
     }
@@ -52,8 +49,6 @@ class TicTacToeGame {
                 if (move == -1) getRandomMove() else move
             }
             DifficultyLevel.Expert -> {
-                // Intentar ganar, pero si no es posible, bloquear
-                // Si eso no es posible, moverse a cualquier lugar
                 var move = getWinningMove()
                 if (move == -1) move = getBlockingMove()
                 if (move == -1) move = getRandomMove()
@@ -99,7 +94,6 @@ class TicTacToeGame {
     }
 
     fun checkForWinner(): Int {
-        // Verificar horizontales
         for (i in 0..6 step 3) {
             if (mBoard[i] == HUMAN_PLAYER &&
                 mBoard[i+1] == HUMAN_PLAYER &&
@@ -111,7 +105,6 @@ class TicTacToeGame {
                 return 3
         }
 
-        // Verificar verticales
         for (i in 0..2) {
             if (mBoard[i] == HUMAN_PLAYER &&
                 mBoard[i+3] == HUMAN_PLAYER &&
@@ -123,7 +116,6 @@ class TicTacToeGame {
                 return 3
         }
 
-        // Verificar diagonales
         if ((mBoard[0] == HUMAN_PLAYER &&
                     mBoard[4] == HUMAN_PLAYER &&
                     mBoard[8] == HUMAN_PLAYER) ||
@@ -154,6 +146,16 @@ class TicTacToeGame {
             mBoard[location]
         } else {
             OPEN_SPOT
+        }
+    }
+
+    fun getBoardState(): CharArray {
+        return mBoard.clone()
+    }
+
+    fun setBoardState(board: CharArray) {
+        if (board.size == BOARD_SIZE) {
+            board.copyInto(mBoard)
         }
     }
 }

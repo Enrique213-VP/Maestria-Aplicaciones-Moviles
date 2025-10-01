@@ -32,10 +32,10 @@
 
         <activity
             android:name=".ui.view.TicTacToeActivity"
+            android:configChanges="orientation|screenSize"
             android:exported="false"
             android:label="Triqui"
-            android:theme="@style/Theme.MasterUnalApp"
-            android:screenOrientation="portrait" />
+            android:theme="@style/Theme.MasterUnalApp" />
 
     </application>
 
