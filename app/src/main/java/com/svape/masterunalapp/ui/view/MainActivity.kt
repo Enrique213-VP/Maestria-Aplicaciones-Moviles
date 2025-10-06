@@ -64,7 +64,8 @@ fun WelcomeScreen() {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(24.dp)
         ) {
             Card(
                 modifier = Modifier
@@ -149,7 +150,7 @@ fun WelcomeScreen() {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Juego Disponible",
+                        text = "Modos de Juego",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF2D3748),
@@ -158,6 +159,7 @@ fun WelcomeScreen() {
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Botón juego contra Android
                     Button(
                         onClick = {
                             val intent = Intent(context, TicTacToeActivity::class.java)
@@ -178,12 +180,47 @@ fun WelcomeScreen() {
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = "🎮",
+                                text = "🤖",
                                 fontSize = 24.sp,
                                 modifier = Modifier.padding(end = 8.dp)
                             )
                             Text(
-                                text = "Jugar Triqui",
+                                text = "vs Computadora",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Juego online
+                    Button(
+                        onClick = {
+                            val intent = Intent(context, OnlineGameActivity::class.java)
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF2E7D32),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "🌐",
+                                fontSize = 24.sp,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text(
+                                text = "Juego Online",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -193,7 +230,7 @@ fun WelcomeScreen() {
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Juega contra la computadora en el clásico juego de triqui",
+                        text = "Juega contra la computadora o contra otros jugadores en línea",
                         fontSize = 12.sp,
                         color = Color(0xFF718096),
                         textAlign = TextAlign.Center,

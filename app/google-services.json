@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "42726509905",
+    "project_id": "dadm-e1b8e",
+    "storage_bucket": "dadm-e1b8e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:42726509905:android:8b1f8b12f552e32e0ad770",
+        "android_client_info": {
+          "package_name": "com.svape.masterunalapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmfARU6oBCo0noW86Jfa0aapDIN39Dzq0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
