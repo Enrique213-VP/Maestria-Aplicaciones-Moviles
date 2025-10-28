@@ -22,6 +22,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.svape.masterunalapp.R
 import com.svape.masterunalapp.ui.theme.MasterUnalAppTheme
 
@@ -35,7 +39,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    WelcomeScreen()
+                    AppNavigation()
                 }
             }
         }
@@ -43,7 +47,27 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun WelcomeScreen() {
+fun AppNavigation() {
+    val navController = rememberNavController()
+
+    NavHost(
+        navController = navController,
+        startDestination = "welcome"
+    ) {
+        composable("welcome") {
+            WelcomeScreen(navController = navController)
+        }
+        composable("map") {
+            MapboxScreen(navController = navController)
+        }
+        composable("gps_map") {
+            GPSMapScreen(navController = navController)
+        }
+    }
+}
+
+@Composable
+fun WelcomeScreen(navController: NavHostController? = null) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -126,6 +150,49 @@ fun WelcomeScreen() {
                         fontSize = 14.sp,
                         color = Color(0xFF718096),
                         textAlign = TextAlign.Center
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Column(
+                modifier = Modifier.padding(horizontal = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Button(
+                    onClick = {
+                        navController?.navigate("map")
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF4299E1)
+                    )
+                ) {
+                    Text(
+                        text = "⛫️ Ver Mapa Básico",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        navController?.navigate("gps_map")
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF48BB78)
+                    )
+                ) {
+                    Text(
+                        text = "✈ Mapa GPS con Lugares",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
